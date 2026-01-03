@@ -99,12 +99,18 @@ function timeAgoShort(iso: string | null | undefined) {
 }
 
 /* =========================
-   Styles
+   Styles (light/dark readable)
 ========================= */
 
 const GLASS_CARD =
-  "rounded-2xl border border-border/50 bg-card/60 shadow-xl backdrop-blur-xl";
-const SOFT_RING = "ring-1 ring-border/20";
+  "rounded-2xl border border-border/60 bg-card/80 shadow-xl backdrop-blur-xl " +
+  "dark:border-border/50 dark:bg-card/60";
+
+const GLASS_ITEM =
+  "rounded-2xl border border-border/60 bg-card/75 shadow-xl backdrop-blur-xl " +
+  "dark:border-border/50 dark:bg-card/40";
+
+const SOFT_RING = "ring-1 ring-border/30 dark:ring-border/20";
 
 /* =========================
    Small components
@@ -122,10 +128,10 @@ function MetricBadge(props: {
 
   const cls =
     variant === "emerald"
-      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+      ? "border-emerald-500/30 bg-emerald-500/12 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200"
       : variant === "violet"
-      ? "border-violet-500/30 bg-violet-500/10 text-violet-200"
-      : "border-border/50 bg-card/40 text-muted-foreground";
+      ? "border-violet-500/30 bg-violet-500/12 text-violet-800 dark:bg-violet-500/10 dark:text-violet-200"
+      : "border-border/60 bg-card/70 text-muted-foreground dark:border-border/50 dark:bg-card/40";
 
   return (
     <span
@@ -137,7 +143,7 @@ function MetricBadge(props: {
     >
       <span className="opacity-80">{icon}</span>
       <span className="opacity-80">{label}</span>
-      <span className="font-bold text-foreground/90">{value}</span>
+      <span className="font-bold text-foreground">{value}</span>
     </span>
   );
 }
@@ -148,7 +154,7 @@ function RangePills(props: {
 }) {
   const { value, onChange } = props;
   return (
-    <div className="flex w-fit items-center gap-1 rounded-xl border border-border/50 bg-card/50 p-1 backdrop-blur-sm">
+    <div className="flex w-fit items-center gap-1 rounded-xl border border-border/60 bg-card/70 p-1 backdrop-blur-sm dark:border-border/50 dark:bg-card/50">
       {(["7d", "14d", "30d"] as const).map((m) => (
         <button
           key={m}
@@ -191,7 +197,7 @@ function KpiCard(props: {
       ? "border-blue-500/25"
       : accent === "rose"
       ? "border-rose-500/25"
-      : "border-border/50";
+      : "border-border/60 dark:border-border/50";
 
   const glow =
     accent === "none"
@@ -208,7 +214,7 @@ function KpiCard(props: {
     <div
       className={cx(
         "relative overflow-hidden",
-        "rounded-2xl border bg-card/50 p-4 shadow-xl backdrop-blur-xl",
+        "rounded-2xl border bg-card/80 p-4 shadow-xl backdrop-blur-xl dark:bg-card/50",
         SOFT_RING,
         accentCls,
         "before:absolute before:-right-20 before:-top-20 before:h-48 before:w-48 before:rounded-full before:blur-2xl before:content-['']",
@@ -229,7 +235,9 @@ function KpiCard(props: {
           {value}
         </div>
         {delta ? (
-          <div className="text-xs font-semibold text-emerald-300">{delta}</div>
+          <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+            {delta}
+          </div>
         ) : null}
       </div>
     </div>
@@ -345,7 +353,13 @@ function AnimatedBg() {
 
   return (
     <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.035)_1px,transparent_0)] bg-[size:28px_28px]" />
+      <div
+        className="
+          absolute inset-0 bg-[size:28px_28px]
+          bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.06)_1px,transparent_0)]
+          dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.035)_1px,transparent_0)]
+        "
+      />
 
       {orbs.map((o, idx) => {
         const common: CSSProperties = {
@@ -354,8 +368,10 @@ function AnimatedBg() {
           filter: `blur(${o.blur}px)`,
           opacity: o.opacity,
           background: bgForHue(o.hue),
-          mixBlendMode: "overlay",
         };
+
+        const orbCls =
+          "absolute rounded-full [mix-blend-mode:multiply] dark:[mix-blend-mode:overlay]";
 
         if (reduceMotion) {
           const x = lerp(o.x0, o.x1, 0.35);
@@ -363,7 +379,7 @@ function AnimatedBg() {
           return (
             <div
               key={o.id}
-              className="absolute rounded-full"
+              className={orbCls}
               style={{
                 ...common,
                 left: `${x}vw`,
@@ -378,7 +394,7 @@ function AnimatedBg() {
           return (
             <motion.div
               key={o.id}
-              className="absolute rounded-full"
+              className={orbCls}
               style={{
                 ...common,
                 left: `${lerp(o.x0, o.x1, 0.5)}vw`,
@@ -423,7 +439,7 @@ function AnimatedBg() {
         return (
           <motion.div
             key={o.id}
-            className="absolute rounded-full"
+            className={orbCls}
             style={{
               ...common,
               left: `${o.x0}vw`,
@@ -449,7 +465,7 @@ function AnimatedBg() {
         );
       })}
 
-      <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/5 to-background/20" />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/25 to-background/70 dark:from-background/10 dark:via-background/5 dark:to-background/20" />
     </div>
   );
 }
@@ -526,6 +542,11 @@ export default function HomePage() {
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [cycleMap, setCycleMap] = useState<Record<string, CycleMini>>({});
 
+  // covers pro "Continuar"
+  const [coverByGameId, setCoverByGameId] = useState<
+    Record<string, string | null>
+  >({});
+
   useEffect(() => {
     let alive = true;
 
@@ -541,7 +562,6 @@ export default function HomePage() {
       });
 
       if (rpcRes.error) {
-        // fallback: mostra erro claro (pra você saber que precisa criar a function)
         if (!alive) return;
         setErrMsg(
           `Falhou ao carregar via rpc_home_dashboard: ${rpcRes.error.message}. ` +
@@ -582,7 +602,34 @@ export default function HomePage() {
       setContinueCards(Array.isArray(nextContinue) ? nextContinue : []);
       setTimeline(Array.isArray(nextTimeline) ? nextTimeline : []);
 
-      // 2) enriquece Timeline com game/status (via relationship)
+      // 2) busca covers dos jogos do "Continuar"
+      const gameIds = Array.from(
+        new Set(
+          (Array.isArray(nextContinue) ? nextContinue : [])
+            .map((c) => c.gameId)
+            .filter(Boolean)
+        )
+      );
+
+      if (gameIds.length) {
+        const { data: gamesData, error: gamesErr } = await supabase
+          .schema("kesslerlog")
+          .from("games")
+          .select("id, cover_url")
+          .in("id", gameIds);
+
+        if (!gamesErr && gamesData) {
+          const map: Record<string, string | null> = {};
+          for (const row of gamesData as any[]) {
+            map[String(row.id)] = row.cover_url ?? null;
+          }
+          if (alive) setCoverByGameId(map);
+        }
+      } else {
+        if (alive) setCoverByGameId({});
+      }
+
+      // 3) enriquece Timeline com game/status (via relationship)
       const cycleIds = Array.from(
         new Set(
           (Array.isArray(nextTimeline) ? nextTimeline : [])
@@ -677,7 +724,6 @@ export default function HomePage() {
       groups.get(key)!.items.push(item);
     }
 
-    // ordena grupos (mais recente primeiro)
     const arr = Array.from(groups.entries())
       .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
       .map(([, v]) => ({
@@ -722,7 +768,9 @@ export default function HomePage() {
             <KpiCard
               title="Jogando agora"
               value={
-                <span className="text-emerald-300">{kpis.playingNow}</span>
+                <span className="text-emerald-700 dark:text-emerald-300">
+                  {kpis.playingNow}
+                </span>
               }
               icon={<Gamepad2 size={16} />}
               accent="emerald"
@@ -769,7 +817,9 @@ export default function HomePage() {
             <KpiCard
               title="Streak"
               value={
-                <span className="text-emerald-300">{kpis.streakDays} dias</span>
+                <span className="text-emerald-700 dark:text-emerald-300">
+                  {kpis.streakDays} dias
+                </span>
               }
               icon={<Flame size={16} />}
               accent="emerald"
@@ -780,15 +830,12 @@ export default function HomePage() {
             <div className="text-xs text-muted-foreground/80">Carregando…</div>
           ) : null}
 
-          {/* Aviso: counts "finished/dropped" dependem de slug padronizado */}
           <p className="text-[11px] text-muted-foreground/70">
             *Para “Finalizados/Dropados” funcionar perfeito, padronize slugs dos
             status (ex: <span className="font-semibold">finished</span>,{" "}
             <span className="font-semibold">dropped</span>).
           </p>
         </section>
-
-        {/* ✅ Em Foco removido */}
 
         {/* Continuar */}
         <section className={cx(GLASS_CARD, SOFT_RING, "p-6")}>
@@ -799,94 +846,121 @@ export default function HomePage() {
 
             <Link
               href="/games"
-              className="cursor-pointer text-xs text-emerald-300 hover:text-emerald-200"
+              className="cursor-pointer text-xs text-emerald-700 hover:text-emerald-800 dark:text-emerald-300 dark:hover:text-emerald-200"
             >
               Ver todos <ChevronRight size={14} className="inline-block" />
             </Link>
           </div>
 
           {continueCards.length ? (
-            <div className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {continueCards.map((g) => (
-                <div
-                  key={g.cycleId}
-                  className={cx(
-                    "relative min-w-[280px] shrink-0 overflow-hidden",
-                    "rounded-2xl border border-border/50 bg-card/40 shadow-xl backdrop-blur-xl",
-                    SOFT_RING
-                  )}
-                >
-                  <div className="absolute inset-0 opacity-70">
-                    <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-emerald-500/10 blur-2xl" />
-                    <div className="absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-violet-500/10 blur-2xl" />
-                  </div>
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {continueCards.map((g) => {
+                const coverUrl = coverByGameId[g.gameId] ?? null;
 
-                  <div className="relative p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-foreground">
-                          {g.game}
-                        </div>
-                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {g.status}
-                        </div>
+                return (
+                  <div
+                    key={g.cycleId}
+                    className={cx(
+                      "relative overflow-hidden",
+                      // deixa altura mais consistente no grid
+                      "h-full flex flex-col",
+                      GLASS_ITEM,
+                      SOFT_RING
+                    )}
+                  >
+                    <div className="absolute inset-0 opacity-70">
+                      <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-emerald-500/10 blur-2xl" />
+                      <div className="absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-violet-500/10 blur-2xl" />
+                    </div>
+
+                    <div className="relative">
+                      {/* cover */}
+                      <div className="relative aspect-[16/10] w-full overflow-hidden border-b border-border/60 bg-background/40 dark:border-border/50 dark:bg-background/20">
+                        {coverUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={coverUrl}
+                            alt={g.game}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                            <Gamepad2 size={22} />
+                          </div>
+                        )}
+
+                        <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-background/15 to-transparent dark:from-background/35" />
                       </div>
 
-                      <span
-                        className={cx(
-                          "rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur-sm",
-                          g.statusSlug === "playing" ||
-                            g.statusSlug === "replaying"
-                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-                            : g.statusSlug === "paused"
-                            ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
-                            : "border-blue-500/30 bg-blue-500/10 text-blue-200"
-                        )}
-                      >
-                        {g.status}
-                      </span>
-                    </div>
+                      <div className="relative p-5 flex flex-col">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-foreground">
+                              {g.game}
+                            </div>
+                            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                              {g.status}
+                            </div>
+                          </div>
 
-                    <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
-                      <span>{timeAgoShort(g.lastSessionAt)}</span>
-                      <span className="inline-flex items-center gap-1">
-                        <Clock size={12} className="opacity-80" />{" "}
-                        {g.hours == null ? "—" : hoursToHuman(g.hours)}
-                      </span>
-                    </div>
+                          <span
+                            className={cx(
+                              "rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur-sm",
+                              g.statusSlug === "playing" ||
+                                g.statusSlug === "replaying"
+                                ? "border-emerald-500/30 bg-emerald-500/12 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200"
+                                : g.statusSlug === "paused"
+                                ? "border-amber-500/30 bg-amber-500/12 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200"
+                                : "border-blue-500/30 bg-blue-500/12 text-blue-900 dark:bg-blue-500/10 dark:text-blue-200"
+                            )}
+                          >
+                            {g.status}
+                          </span>
+                        </div>
 
-                    <div className="mt-4 flex items-center gap-2">
-                      <MetricBadge
-                        variant="emerald"
-                        icon={<Star size={12} />}
-                        label="sessão"
-                        value={
-                          g.avgSession == null
-                            ? "—"
-                            : Number(g.avgSession).toFixed(1)
-                        }
-                      />
-                      <MetricBadge
-                        variant="violet"
-                        icon={<Sparkles size={12} />}
-                        label="review"
-                        value={
-                          g.avgReview == null
-                            ? "—"
-                            : Number(g.avgReview).toFixed(1)
-                        }
-                      />
-                    </div>
+                        <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>{timeAgoShort(g.lastSessionAt)}</span>
+                          <span className="inline-flex items-center gap-1">
+                            <Clock size={12} className="opacity-80" />{" "}
+                            {g.hours == null ? "—" : hoursToHuman(g.hours)}
+                          </span>
+                        </div>
 
-                    <Button
-                      className="mt-4 h-10 w-full cursor-pointer rounded-xl"
-                      asChild
-                    >
-                      <Link href="/games">Continuar</Link>
-                    </Button>
+                        <div className="mt-4 flex items-center gap-2">
+                          <MetricBadge
+                            variant="emerald"
+                            icon={<Star size={12} />}
+                            label="sessão"
+                            value={
+                              g.avgSession == null
+                                ? "—"
+                                : Number(g.avgSession).toFixed(1)
+                            }
+                          />
+                          <MetricBadge
+                            variant="violet"
+                            icon={<Sparkles size={12} />}
+                            label="review"
+                            value={
+                              g.avgReview == null
+                                ? "—"
+                                : Number(g.avgReview).toFixed(1)
+                            }
+                          />
+                        </div>
+
+                        <Button
+                          className="mt-4 h-10 w-full cursor-pointer rounded-xl"
+                          asChild
+                        >
+                          <Link href="/games">Continuar</Link>
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">
@@ -938,18 +1012,18 @@ export default function HomePage() {
                     <div className="text-xs font-semibold text-foreground">
                       {g.label}
                     </div>
-                    <div className="h-px flex-1 bg-border/60" />
+                    <div className="h-px flex-1 bg-border/70 dark:bg-border/60" />
                   </div>
 
                   <div className="relative pl-4">
-                    <div className="absolute left-1 top-1 h-full w-px bg-border/60" />
+                    <div className="absolute left-1 top-1 h-full w-px bg-border/70 dark:bg-border/60" />
 
                     <div className="space-y-3">
                       {g.items.map((t) => {
                         const kindCfg = (() => {
                           if (t.kind === "SESSION_END")
                             return {
-                              dot: "bg-emerald-400",
+                              dot: "bg-emerald-600 dark:bg-emerald-400",
                               chip: (
                                 <MetricBadge
                                   variant="emerald"
@@ -964,7 +1038,7 @@ export default function HomePage() {
                               ),
                             };
                           return {
-                            dot: "bg-violet-400",
+                            dot: "bg-violet-600 dark:bg-violet-400",
                             chip: (
                               <MetricBadge
                                 variant="violet"
@@ -984,8 +1058,8 @@ export default function HomePage() {
                           <div
                             key={t.id}
                             className={cx(
-                              "relative overflow-hidden",
-                              "rounded-2xl border border-border/50 bg-card/40 p-5 shadow-xl backdrop-blur-xl",
+                              "relative overflow-hidden p-5",
+                              GLASS_ITEM,
                               SOFT_RING
                             )}
                           >
@@ -1021,7 +1095,7 @@ export default function HomePage() {
 
                               <div className="flex flex-col items-end gap-2">
                                 {kindCfg.chip}
-                                <button className="cursor-pointer inline-flex items-center gap-1 rounded-xl border border-border/50 bg-card/50 px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground hover:text-foreground backdrop-blur-sm">
+                                <button className="cursor-pointer inline-flex items-center gap-1 rounded-xl border border-border/60 bg-card/70 px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground hover:text-foreground backdrop-blur-sm dark:border-border/50 dark:bg-card/50">
                                   Abrir <ArrowUpRight size={12} />
                                 </button>
                               </div>
@@ -1029,7 +1103,7 @@ export default function HomePage() {
 
                             {t.kind === "SESSION_END" ? (
                               <div className="relative mt-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                                <span className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-card/40 px-2 py-1 backdrop-blur-sm">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/70 px-2 py-1 backdrop-blur-sm dark:border-border/50 dark:bg-card/40">
                                   <MessageSquareText
                                     size={12}
                                     className="opacity-80"

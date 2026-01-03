@@ -701,7 +701,7 @@ export default function ReviewsPage() {
                             <>
                               <span className="opacity-60">•</span>
                               <a
-                                className="inline-flex items-center gap-1 text-emerald-300 hover:text-emerald-200"
+                                className="inline-flex items-center gap-1 text-emerald-500 hover:text-emerald-500"
                                 href={g.external_url}
                                 target="_blank"
                                 rel="noreferrer"

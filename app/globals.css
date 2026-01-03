@@ -49,55 +49,46 @@
 :root {
   --radius: 0.625rem;
 
-  /* ✅ fundo mais “paper grey” pra o glass aparecer */
-  --background: oklch(0.93 0.006 286.32);
-  --foreground: oklch(0.16 0.01 285.823);
+  /* LIGHT mais “quente/legível” (menos claro + mais contraste) */
+  --background: oklch(0.84 0.012 286.32);
+  --foreground: oklch(0.14 0.015 285.823);
 
-  /* ✅ cards bem claros (com bg-card/60 ainda vai destacar do fundo) */
-  --card: oklch(0.985 0.003 286.32);
-  --card-foreground: oklch(0.16 0.01 285.823);
+  --card: oklch(0.91 0.01 286.32);
+  --card-foreground: oklch(0.14 0.015 285.823);
 
-  --popover: oklch(0.985 0.003 286.32);
-  --popover-foreground: oklch(0.16 0.01 285.823);
+  --popover: oklch(0.91 0.01 286.32);
+  --popover-foreground: oklch(0.14 0.015 285.823);
 
   --primary: oklch(0.21 0.006 285.885);
   --primary-foreground: oklch(0.985 0 0);
 
-  --secondary: oklch(0.9 0.008 286.32);
+  --secondary: oklch(0.8 0.012 286.32);
   --secondary-foreground: oklch(0.21 0.006 285.885);
 
-  --muted: oklch(0.9 0.008 286.32);
+  --muted: oklch(0.8 0.012 286.32);
+  --muted-foreground: oklch(
+    0.28 0.025 285.94
+  ); /* MAIS escuro = melhor leitura */
 
-  /* ✅ texto “muted” mais escuro pra dar leitura */
-  --muted-foreground: oklch(0.34 0.02 285.94);
-
-  --accent: oklch(0.9 0.008 286.32);
+  --accent: oklch(0.8 0.012 286.32);
   --accent-foreground: oklch(0.21 0.006 285.885);
 
   --destructive: oklch(0.577 0.245 27.325);
 
-  /* ✅ bordas bem mais visíveis */
-  --border: oklch(0.78 0.015 286.32);
-  --input: oklch(0.78 0.015 286.32);
+  --border: oklch(0.66 0.02 286.32); /* borda aparece mesmo com /50 */
+  --input: oklch(0.66 0.02 286.32);
 
-  /* ✅ ring mais evidente */
-  --ring: oklch(0.52 0.03 286);
+  --ring: oklch(0.5 0.04 286);
 
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-
-  /* sidebar alinhada */
-  --sidebar: oklch(0.945 0.006 286.32);
-  --sidebar-foreground: oklch(0.16 0.01 285.823);
+  /* sidebar acompanha a base */
+  --sidebar: oklch(0.83 0.012 286.32);
+  --sidebar-foreground: oklch(0.14 0.015 285.823);
   --sidebar-primary: oklch(0.21 0.006 285.885);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.9 0.008 286.32);
+  --sidebar-accent: oklch(0.8 0.012 286.32);
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.78 0.015 286.32);
-  --sidebar-ring: oklch(0.52 0.03 286);
+  --sidebar-border: oklch(0.66 0.02 286.32);
+  --sidebar-ring: oklch(0.5 0.04 286);
 }
 
 .dark {
@@ -200,7 +191,7 @@
   pointer-events: none;
   z-index: 0;
 
-  /* ✅ Glow simplificado - usando box-shadow em vez de múltiplos drop-shadows */
+  /* ✅ Glow simplificado */
   filter: saturate(1.8) contrast(1.1) brightness(1.1);
   box-shadow: 0 0 12px rgba(168, 85, 247, 0.4), 0 0 18px rgba(16, 185, 129, 0.3),
     0 0 24px rgba(59, 130, 246, 0.25);

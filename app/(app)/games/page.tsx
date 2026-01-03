@@ -58,20 +58,26 @@ function normalizeText(input: string) {
 }
 
 const GLASS_CARD =
-  "rounded-2xl border border-border/50 bg-card/60 shadow-xl backdrop-blur-xl";
+  "rounded-2xl border border-border/60 bg-card/80 shadow-xl backdrop-blur-xl dark:border-border/50 dark:bg-card/60";
+const GLASS_ITEM =
+  "rounded-2xl border border-border/60 bg-card/75 shadow-xl backdrop-blur-xl dark:border-border/50 dark:bg-card/40";
+
 const SOFT_RING = "ring-1 ring-border/20";
 
 const BTN_GREEN =
   "cursor-pointer rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 text-emerald-950 hover:from-emerald-400 hover:to-emerald-300 shadow-sm dark:text-emerald-950";
 
 const BTN_GREEN_OUTLINE =
-  "cursor-pointer rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15";
+  "cursor-pointer rounded-xl border border-emerald-500/30 bg-emerald-500/12 text-emerald-900 hover:bg-emerald-500/18 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/15";
+
+const LINK_GREEN =
+  "text-emerald-700 hover:text-emerald-800 dark:text-emerald-300 dark:hover:text-emerald-200";
 
 const CLICKABLE = "cursor-pointer disabled:cursor-not-allowed";
 
 const INPUT_WRAP = "kb-ring kb-ring-focus";
 const INPUT_BASE =
-  "kb-ring-inner relative h-11 w-full rounded-xl border border-border/70 bg-background/90 ring-1 ring-border/20 shadow-sm transition-all dark:border-border/50 dark:bg-background/70 dark:shadow-none";
+  "kb-ring-inner relative h-11 w-full rounded-xl border border-border/70 bg-background/95 ring-1 ring-border/20 shadow-sm transition-all dark:border-border/50 dark:bg-background/70 dark:shadow-none";
 const INPUT_EL =
   "h-11 w-full bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground";
 
@@ -115,7 +121,7 @@ function ViewToggle({
   onChange: (v: ViewMode) => void;
 }) {
   return (
-    <div className="flex w-fit items-center gap-1 rounded-xl border border-border/50 bg-card/50 p-1 backdrop-blur-sm">
+    <div className="flex w-fit items-center gap-1 rounded-xl border border-border/60 bg-card/70 p-1 backdrop-blur-sm dark:border-border/50 dark:bg-card/50">
       <button
         type="button"
         onClick={() => onChange("list")}
@@ -163,13 +169,13 @@ function NotesLine({
   const BADGE =
     "inline-flex w-full items-center justify-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold leading-none backdrop-blur-sm";
 
+  const EMERALD =
+    "border-emerald-500/25 bg-emerald-500/12 text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-200";
+
   return (
     <div className="grid grid-cols-2 gap-2">
       <span
-        className={cx(
-          BADGE,
-          "border-emerald-500/25 bg-emerald-500/10 text-emerald-200"
-        )}
+        className={cx(BADGE, EMERALD)}
         title="Sua nota (média das sessões) • última registrada"
       >
         <Star size={11} className="opacity-85" />
@@ -177,10 +183,7 @@ function NotesLine({
       </span>
 
       <span
-        className={cx(
-          BADGE,
-          "border-emerald-500/25 bg-emerald-500/10 text-emerald-200"
-        )}
+        className={cx(BADGE, EMERALD)}
         title="Sua nota (review final) • última registrada"
       >
         <Star size={11} className="opacity-85" />
@@ -208,9 +211,12 @@ function ExternalRatingsGrid({ ratings }: { ratings: ExternalRatingRow[] }) {
   const BADGE =
     "flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-semibold leading-none backdrop-blur-sm";
 
+  const VIOLET =
+    "border-violet-500/25 bg-violet-500/12 text-violet-900 dark:bg-violet-500/10 dark:text-violet-200";
+
   if (!slots.length) {
     return (
-      <div className="rounded-full border border-border/50 bg-card/40 px-3 py-1 text-[10px] text-muted-foreground">
+      <div className="rounded-full border border-border/60 bg-card/60 px-3 py-1 text-[10px] text-muted-foreground dark:border-border/50 dark:bg-card/40">
         Sem reviews externas.
       </div>
     );
@@ -226,7 +232,7 @@ function ExternalRatingsGrid({ ratings }: { ratings: ExternalRatingRow[] }) {
               key={(r as any).id}
               className={cx(
                 "flex items-center justify-center rounded-full border px-2.5 py-1 text-[10px] font-semibold leading-none",
-                "border-violet-500/20 bg-violet-500/10 text-violet-200"
+                "border-violet-500/20 bg-violet-500/12 text-violet-900 dark:bg-violet-500/10 dark:text-violet-200"
               )}
               title="Mais reviews externas"
             >
@@ -241,10 +247,7 @@ function ExternalRatingsGrid({ ratings }: { ratings: ExternalRatingRow[] }) {
           <div
             key={rr.id}
             title={rr.url ?? undefined}
-            className={cx(
-              BADGE,
-              "border-violet-500/25 bg-violet-500/10 text-violet-200"
-            )}
+            className={cx(BADGE, VIOLET)}
           >
             <Star size={11} className="opacity-85 shrink-0" />
             <span className="min-w-0 truncate">{rr.source.toUpperCase()}</span>
@@ -318,7 +321,7 @@ function AnimatedBg() {
       const big = rng() > 0.65;
 
       const size = big ? 520 + rng() * 420 : 220 + rng() * 260;
-      const opacity = big ? 0.16 + rng() * 0.1 : 0.14 + rng() * 0.1;
+      const opacity = big ? 0.14 + rng() * 0.08 : 0.12 + rng() * 0.08; // leve queda (melhor leitura no claro)
       const blur = big ? 56 + rng() * 40 : 34 + rng() * 26;
 
       const fromSide = Math.floor(rng() * 4);
@@ -365,7 +368,7 @@ function AnimatedBg() {
 
   return (
     <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.035)_1px,transparent_0)] bg-[size:28px_28px]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.03)_1px,transparent_0)] bg-[size:28px_28px]" />
 
       {orbs.map((o, idx) => {
         const common: CSSProperties = {
@@ -976,7 +979,9 @@ export default function GamesPage() {
               ) : (
                 <CheckCircle2 className="mt-0.5" size={16} />
               )}
-              <div className="text-sm text-muted-foreground">{msg}</div>
+              <div className="text-sm text-foreground/75 dark:text-muted-foreground">
+                {msg}
+              </div>
             </div>
           </div>
         ) : null}
@@ -1038,7 +1043,8 @@ export default function GamesPage() {
                     <li
                       key={g.id}
                       className={cx(
-                        "relative overflow-hidden rounded-2xl border border-border/50 bg-card/40 p-4 backdrop-blur-xl shadow-xl",
+                        "relative overflow-hidden p-4",
+                        GLASS_ITEM,
                         SOFT_RING
                       )}
                     >
@@ -1052,7 +1058,7 @@ export default function GamesPage() {
                         <div className="flex items-start gap-4">
                           <div
                             className={cx(
-                              "shrink-0 overflow-hidden rounded-2xl border border-border/50 bg-background/40",
+                              "shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-background/55 dark:border-border/50 dark:bg-background/40",
                               "w-20 h-28 sm:w-24 sm:h-36 lg:w-28 lg:h-40"
                             )}
                           >
@@ -1108,7 +1114,10 @@ export default function GamesPage() {
                                 <>
                                   <span className="opacity-60">•</span>
                                   <a
-                                    className="inline-flex items-center gap-1 text-emerald-300 hover:text-emerald-200"
+                                    className={cx(
+                                      "inline-flex items-center gap-1 text-[11px] font-semibold",
+                                      LINK_GREEN
+                                    )}
                                     href={g.external_url}
                                     target="_blank"
                                     rel="noreferrer"
@@ -1136,7 +1145,7 @@ export default function GamesPage() {
                             className={cx(
                               "h-10 rounded-xl",
                               CLICKABLE,
-                              "border-emerald-500/25 hover:bg-emerald-500/10"
+                              "border-emerald-500/25 hover:bg-emerald-500/10 text-emerald-900 dark:text-emerald-200"
                             )}
                             onClick={() => openFullDrawer(g)}
                             disabled={loading}
@@ -1182,7 +1191,8 @@ export default function GamesPage() {
                     <div
                       key={g.id}
                       className={cx(
-                        "relative overflow-hidden rounded-2xl border border-border/50 bg-card/40 shadow-xl backdrop-blur-xl",
+                        "relative overflow-hidden",
+                        GLASS_ITEM,
                         SOFT_RING
                       )}
                     >
@@ -1192,7 +1202,7 @@ export default function GamesPage() {
                       </div>
 
                       <div className="relative">
-                        <div className="aspect-[16/10] w-full overflow-hidden border-b border-border/50 bg-background/30">
+                        <div className="aspect-[16/10] w-full overflow-hidden border-b border-border/60 bg-background/55 dark:border-border/50 dark:bg-background/30">
                           {g.cover_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -1206,6 +1216,8 @@ export default function GamesPage() {
                               <Gamepad2 size={22} />
                             </div>
                           )}
+
+                          <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-background/10 to-transparent dark:from-background/35" />
                         </div>
 
                         <div className="p-4">
@@ -1224,7 +1236,10 @@ export default function GamesPage() {
                           <div className="mt-3 space-y-2">
                             {g.external_url ? (
                               <a
-                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-300 hover:text-emerald-200"
+                                className={cx(
+                                  "inline-flex items-center gap-1 text-[11px] font-semibold",
+                                  LINK_GREEN
+                                )}
                                 href={g.external_url}
                                 target="_blank"
                                 rel="noreferrer"
@@ -1245,7 +1260,7 @@ export default function GamesPage() {
                               className={cx(
                                 "h-9 rounded-xl text-xs",
                                 CLICKABLE,
-                                "border-emerald-500/25 hover:bg-emerald-500/10"
+                                "border-emerald-500/25 hover:bg-emerald-500/10 text-emerald-900 dark:text-emerald-200"
                               )}
                               onClick={() => openFullDrawer(g)}
                               disabled={loading}
