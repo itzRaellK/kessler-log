@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   RefreshCw,
@@ -325,6 +332,14 @@ type CycleRow = {
 ========================= */
 
 export default function ReviewsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const qFromUrl = searchParams.get("q") ?? "";
+  const gameIdFromUrl = searchParams.get("gameId");
+  const openedOnce = useRef(false);
+
   const DEFAULT_VISIBLE = 20;
   const STEP_VISIBLE = 20;
 
@@ -346,6 +361,41 @@ export default function ReviewsPage() {
   // drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerGameId, setDrawerGameId] = useState<string | null>(null);
+
+  // injeta q vindo da URL (Topbar / links)
+  useEffect(() => {
+    setQ(qFromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qFromUrl]);
+
+  function setQAndUrl(next: string) {
+    setQ(next);
+
+    const p = new URLSearchParams(searchParams.toString());
+    const cleaned = next?.trim() ?? "";
+    if (cleaned) p.set("q", next);
+    else p.delete("q");
+
+    const qs = p.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
+
+  // abre o drawer se vier gameId na URL (e remove gameId depois)
+  useEffect(() => {
+    if (openedOnce.current) return;
+    if (!gameIdFromUrl) return;
+
+    setDrawerGameId(gameIdFromUrl);
+    setDrawerOpen(true);
+    openedOnce.current = true;
+
+    const p = new URLSearchParams(searchParams.toString());
+    p.delete("gameId");
+    const qs = p.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameIdFromUrl]);
 
   async function loadUser() {
     const { data, error } = await supabase.auth.getUser();
@@ -588,7 +638,7 @@ export default function ReviewsPage() {
                     <input
                       className={cx(INPUT_EL, "pl-9 pr-3")}
                       value={q}
-                      onChange={(e) => setQ(e.target.value)}
+                      onChange={(e) => setQAndUrl(e.target.value)}
                       placeholder="Buscar jogo..."
                     />
                   </div>

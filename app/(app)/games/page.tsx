@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   Plus,
@@ -321,7 +328,7 @@ function AnimatedBg() {
       const big = rng() > 0.65;
 
       const size = big ? 520 + rng() * 420 : 220 + rng() * 260;
-      const opacity = big ? 0.14 + rng() * 0.08 : 0.12 + rng() * 0.08; // leve queda (melhor leitura no claro)
+      const opacity = big ? 0.14 + rng() * 0.08 : 0.12 + rng() * 0.08;
       const blur = big ? 56 + rng() * 40 : 34 + rng() * 26;
 
       const fromSide = Math.floor(rng() * 4);
@@ -514,6 +521,15 @@ export default function GamesPage() {
   const DEFAULT_VISIBLE = 20;
   const STEP_VISIBLE = 20;
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const qFromUrl = searchParams.get("q") ?? "";
+  const gameIdFromUrl = searchParams.get("gameId");
+
+  const openedOnce = useRef(false);
+
   const [rows, setRows] = useState<GameRow[]>([]);
   const [ratingsByGame, setRatingsByGame] = useState<RatingsByGame>({});
 
@@ -531,6 +547,12 @@ export default function GamesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   const [visibleLimit, setVisibleLimit] = useState(DEFAULT_VISIBLE);
+
+  // injeta q vindo da URL
+  useEffect(() => {
+    setQ(qFromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qFromUrl]);
 
   const qNorm = useMemo(() => normalizeText(q), [q]);
 
@@ -916,6 +938,24 @@ export default function GamesPage() {
     if (!qNorm) setVisibleLimit(DEFAULT_VISIBLE);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qNorm]);
+
+  // abre o drawer se vier gameId na URL (e remove gameId depois)
+  useEffect(() => {
+    if (openedOnce.current) return;
+    if (!gameIdFromUrl) return;
+
+    const g = rows.find((x) => x.id === gameIdFromUrl);
+    if (!g) return;
+
+    openFullDrawer(g);
+    openedOnce.current = true;
+
+    const p = new URLSearchParams(searchParams.toString());
+    p.delete("gameId");
+    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameIdFromUrl, rows]);
 
   return (
     <main className="relative isolate min-h-screen overflow-hidden bg-background">
