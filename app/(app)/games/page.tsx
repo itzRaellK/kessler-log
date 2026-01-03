@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useEffect,
   useMemo,
   useRef,
@@ -517,7 +518,7 @@ type MyNotesByGame = Record<
    Page
 ========================= */
 
-export default function GamesPage() {
+function GamesPageInner() {
   const DEFAULT_VISIBLE = 20;
   const STEP_VISIBLE = 20;
 
@@ -1400,5 +1401,17 @@ export default function GamesPage() {
         onDeleteRating={deleteExternalRatingForGame}
       />
     </main>
+  );
+}
+
+export default function GamesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6 text-sm text-muted-foreground">Carregando…</div>
+      }
+    >
+      <GamesPageInner />
+    </Suspense>
   );
 }
