@@ -1089,7 +1089,8 @@ function GamesPageInner() {
                         SOFT_RING
                       )}
                     >
-                      <div className="absolute inset-0 opacity-60">
+                      {/* overlay decorativo não pode capturar clique */}
+                      <div className="pointer-events-none absolute inset-0 opacity-60">
                         <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-emerald-500/10 blur-2xl" />
                         <div className="absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-violet-500/10 blur-2xl" />
                       </div>
@@ -1232,18 +1233,20 @@ function GamesPageInner() {
                     <div
                       key={g.id}
                       className={cx(
-                        "relative overflow-hidden",
+                        "relative overflow-hidden h-full",
                         GLASS_ITEM,
                         SOFT_RING
                       )}
                     >
-                      <div className="absolute inset-0 opacity-60">
+                      {/* overlay decorativo não pode capturar clique */}
+                      <div className="pointer-events-none absolute inset-0 opacity-60">
                         <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-emerald-500/10 blur-2xl" />
                         <div className="absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-violet-500/10 blur-2xl" />
                       </div>
 
-                      <div className="relative">
-                        <div className="aspect-[16/10] w-full overflow-hidden border-b border-border/60 bg-background/55 dark:border-border/50 dark:bg-background/30">
+                      <div className="relative flex h-full flex-col">
+                        {/* IMPORTANTÍSSIMO: relative aqui, senão o overlay absolute cobre o card todo */}
+                        <div className="relative aspect-[16/10] w-full overflow-hidden border-b border-border/60 bg-background/55 dark:border-border/50 dark:bg-background/30">
                           {g.cover_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -1258,10 +1261,12 @@ function GamesPageInner() {
                             </div>
                           )}
 
-                          <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-background/10 to-transparent dark:from-background/35" />
+                          {/* overlay do gradiente também não pode capturar clique */}
+                          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/70 via-background/10 to-transparent dark:from-background/35" />
                         </div>
 
-                        <div className="p-4">
+                        {/* flex-1 pra empurrar ações pro rodapé do card */}
+                        <div className="flex flex-1 flex-col p-4">
                           <div className="truncate text-sm font-semibold text-foreground">
                             {g.title}
                           </div>
@@ -1294,7 +1299,8 @@ function GamesPageInner() {
                             <ExternalRatingsGrid ratings={ratings} />
                           </div>
 
-                          <div className="mt-4 grid grid-cols-2 gap-2">
+                          {/* ações sempre no rodapé */}
+                          <div className="mt-auto pt-4 grid grid-cols-2 gap-2">
                             <Button
                               size="sm"
                               variant="outline"
