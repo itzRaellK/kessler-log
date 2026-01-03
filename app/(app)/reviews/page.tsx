@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useEffect,
   useMemo,
   useRef,
@@ -331,7 +332,7 @@ type CycleRow = {
    Page
 ========================= */
 
-export default function ReviewsPage() {
+function ReviewsPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -855,5 +856,17 @@ export default function ReviewsPage() {
         ) : null}
       </div>
     </main>
+  );
+}
+
+export default function ReviewsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6 text-sm text-muted-foreground">Carregando…</div>
+      }
+    >
+      <ReviewsPageInner />
+    </Suspense>
   );
 }

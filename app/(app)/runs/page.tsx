@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useEffect,
   useMemo,
   useRef,
@@ -358,10 +359,10 @@ type RecentSessionRow = {
 };
 
 /* =========================
-   Page
+   Page (inner)
 ========================= */
 
-export default function RunsPage() {
+function RunsPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -1068,5 +1069,21 @@ export default function RunsPage() {
         ) : null}
       </div>
     </main>
+  );
+}
+
+/* =========================
+   Page (wrapper w/ Suspense)
+========================= */
+
+export default function RunsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6 text-sm text-muted-foreground">Carregando…</div>
+      }
+    >
+      <RunsPageInner />
+    </Suspense>
   );
 }
