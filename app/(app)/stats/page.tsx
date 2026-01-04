@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -18,6 +19,7 @@ import {
   ChevronDown,
   X,
   Filter,
+  PieChart as PieIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -29,12 +31,10 @@ import {
   Tooltip,
   BarChart,
   Bar,
-  Line,
-  AreaChart,
-  Area,
-  Brush,
-  ReferenceLine,
   LabelList,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 
 import {
@@ -45,7 +45,7 @@ import {
 import { GameHistoryDrawer } from "./components/GameHistoryDrawer";
 
 /* =========================
-   Utils + Styles (igual sua pegada)
+   Utils + Styles
 ========================= */
 function cx(...s: Array<string | false | null | undefined>) {
   return s.filter(Boolean).join(" ");
@@ -101,44 +101,132 @@ const CHIP =
   "inline-flex items-center rounded-full border border-border/50 bg-card/40 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground";
 
 /* =========================
-   Chart helpers
+   Emerald palette (charts)
 ========================= */
-function clamp(n: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, n));
+const EMERALD_400 = "rgba(52,211,153,1)";
+const EMERALD_500 = "rgba(16,185,129,1)";
+const EMERALD_600 = "rgba(5,150,105,1)";
+function donutGradId(i: number) {
+  return `donutGrad-${i}`;
 }
 
-function GlassTooltip(props: any) {
-  const { active, payload, label, labelFormatter } = props;
+/* =========================
+   Chart helpers
+========================= */
+function GlassTooltipShell(props: { title: ReactNode; children: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-emerald-500/20 bg-background/80 p-3 shadow-2xl backdrop-blur-xl">
+      <div className="text-[11px] font-semibold text-foreground">
+        {props.title}
+      </div>
+      <div className="mt-2">{props.children}</div>
+    </div>
+  );
+}
+
+function HoursByMonthTooltip(props: any) {
+  const { active, payload } = props;
   if (!active || !payload?.length) return null;
 
-  const finalLabel =
-    typeof labelFormatter === "function" ? labelFormatter(label) : label;
+  const p = payload?.[0]?.payload;
+  if (!p) return null;
+
+  const monthLabel = p.label ?? "—";
+  const totalHours =
+    typeof p.hours === "number" ? p.hours.toFixed(1) : String(p.hours ?? "—");
+
+  const games: Array<any> = Array.isArray(p.games) ? p.games : [];
 
   return (
-    <div className="rounded-2xl border border-border/50 bg-background/80 p-3 shadow-2xl backdrop-blur-xl">
-      <div className="text-[11px] font-semibold text-foreground">
-        {finalLabel}
-      </div>
-      <div className="mt-2 space-y-1">
-        {payload
-          .filter((p: any) => p?.value != null && p.value !== "")
-          .map((p: any) => (
+    <GlassTooltipShell title={`${monthLabel} • ${totalHours} hrs`}>
+      {games.length ? (
+        <div className="space-y-1">
+          {games.slice(0, 10).map((g: any) => (
             <div
-              key={p.dataKey}
+              key={g.game_id}
               className="flex items-center justify-between gap-6"
             >
-              <span className="text-[11px] text-muted-foreground">
-                {p.name ?? p.dataKey}
+              <span className="text-[11px] text-muted-foreground truncate max-w-[220px]">
+                {g.title}
               </span>
               <span className="text-[11px] font-semibold text-foreground">
-                {typeof p.value === "number"
-                  ? p.value.toFixed(1)
-                  : String(p.value)}
+                {typeof g.hours === "number" ? g.hours.toFixed(1) : "—"}h •{" "}
+                {typeof g.percent === "number" ? g.percent.toFixed(1) : "—"}%
               </span>
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="text-[11px] text-muted-foreground">(sem jogos)</div>
+      )}
+    </GlassTooltipShell>
+  );
+}
+
+function DonutTooltip(props: any) {
+  const { active, payload } = props;
+  if (!active || !payload?.length) return null;
+
+  const p = payload?.[0]?.payload;
+  if (!p) return null;
+
+  const hours =
+    typeof p.hours === "number" ? p.hours.toFixed(1) : String(p.hours ?? "—");
+  const percent =
+    typeof p.percent === "number"
+      ? p.percent.toFixed(1)
+      : String(p.percent ?? "—");
+
+  const avgReview =
+    p.avg_review != null && Number.isFinite(Number(p.avg_review))
+      ? Number(p.avg_review).toFixed(1)
+      : "—";
+
+  const avgSess =
+    p.avg_session_score != null && Number.isFinite(Number(p.avg_session_score))
+      ? Number(p.avg_session_score).toFixed(1)
+      : "—";
+
+  const external =
+    p.external_rating != null && Number.isFinite(Number(p.external_rating))
+      ? Number(p.external_rating).toFixed(1)
+      : null;
+
+  return (
+    <GlassTooltipShell title={`${p.title} • ${hours}h • ${percent}%`}>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-6">
+          <span className="text-[11px] text-muted-foreground">
+            média review
+          </span>
+          <span className="text-[11px] font-semibold text-foreground">
+            {avgReview}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-6">
+          <span className="text-[11px] text-muted-foreground">
+            média sessões
+          </span>
+          <span className="text-[11px] font-semibold text-foreground">
+            {avgSess}
+          </span>
+        </div>
+        {external != null ? (
+          <div className="flex items-center justify-between gap-6">
+            <span className="text-[11px] text-muted-foreground">
+              nota externa
+            </span>
+            <span className="text-[11px] font-semibold text-foreground">
+              {external}
+            </span>
+          </div>
+        ) : (
+          <div className="text-[11px] text-muted-foreground">
+            (sem nota externa)
+          </div>
+        )}
       </div>
-    </div>
+    </GlassTooltipShell>
   );
 }
 
@@ -299,14 +387,10 @@ export default function StatsPage() {
     refreshAll,
   } = useStatsDashboard();
 
-  // drawer (histórico do jogo)
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerGameId, setDrawerGameId] = useState<string | null>(null);
 
-  // filtros colapsáveis
   const [filtersOpen, setFiltersOpen] = useState(true);
-
-  // controla overflow do corpo dos filtros durante animação (pra dropdown não ser cortado)
   const [bodyOverflow, setBodyOverflow] = useState<"hidden" | "visible">(
     "hidden"
   );
@@ -314,12 +398,10 @@ export default function StatsPage() {
     setBodyOverflow("hidden");
   }, [filtersOpen]);
 
-  // ✅ portal dropdown (pra NÃO ficar atrás dos KPIs)
   const gameInputRef = useRef<HTMLDivElement | null>(null);
   const gameDropdownRef = useRef<HTMLDivElement | null>(null);
   const [gameRect, setGameRect] = useState<DOMRect | null>(null);
 
-  // UI state (auto-apply)
   const [uiPeriod, setUiPeriod] = useState<PeriodPreset>(filters.period);
   const [uiYear, setUiYear] = useState<number | null>(filters.year);
   const [uiMonth, setUiMonth] = useState<number | null>(filters.month);
@@ -330,7 +412,6 @@ export default function StatsPage() {
   const showGameDropdown =
     !uiGameId && !!gameQuery.trim() && gameOptions.length > 0;
 
-  // ✅ garante ano/mês quando o período exigir (sem atropelar escolha)
   useEffect(() => {
     const { year, month } = getNowYearMonth();
 
@@ -342,12 +423,9 @@ export default function StatsPage() {
 
     if (uiPeriod === "year") {
       setUiYear((prev) => prev ?? year);
-      // opcional (se quiser): ao sair de month, limpar mês
-      // setUiMonth(null);
     }
   }, [uiPeriod]);
 
-  // sync UI quando filtros mudarem por fora
   useEffect(() => {
     setUiPeriod(filters.period);
     setUiYear(filters.year);
@@ -370,12 +448,9 @@ export default function StatsPage() {
     filters.gameId,
   ]);
 
-  // ✅ AUTO APPLY (debounce leve) — IMPORTANTE:
-  // Não mandar year/month=null em last30/last90/all (senão você “limpa” o estado do hook)
   useEffect(() => {
     const t = setTimeout(() => {
       const qFromInput = uiGameId ? "" : (gameQuery ?? "").trim();
-
       const { year: nowYear, month: nowMonth } = getNowYearMonth();
 
       const patch: Partial<StatsFilters> = {
@@ -390,10 +465,7 @@ export default function StatsPage() {
         patch.month = uiMonth ?? nowMonth;
       } else if (uiPeriod === "year") {
         patch.year = uiYear ?? nowYear;
-        patch.month = null; // opcional: garante que month não “vaze” no estado
-      } else {
-        // ✅ last30/last90/all -> NÃO altera year/month
-        // (mantém defaults do hook ou a última seleção útil)
+        patch.month = null;
       }
 
       setFilters(patch);
@@ -403,7 +475,6 @@ export default function StatsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uiPeriod, uiYear, uiMonth, uiStatusId, uiGameId, gameQuery]);
 
-  // Recalcula posição do input enquanto dropdown estiver aberto
   useEffect(() => {
     if (!showGameDropdown) return;
 
@@ -413,7 +484,6 @@ export default function StatsPage() {
     const update = () => setGameRect(el.getBoundingClientRect());
     update();
 
-    // scroll em qualquer container também (capturing)
     window.addEventListener("scroll", update, true);
     window.addEventListener("resize", update);
 
@@ -423,7 +493,6 @@ export default function StatsPage() {
     };
   }, [showGameDropdown, gameQuery, uiGameId]);
 
-  // Fecha dropdown no clique fora / Esc
   useEffect(() => {
     if (!showGameDropdown) return;
 
@@ -476,37 +545,29 @@ export default function StatsPage() {
   }, [filters.period, periodOptions]);
 
   const kpis = dashboard?.kpis ?? null;
-
-  const recentRatings = dashboard?.recentRatings ?? [];
-  const timeline = dashboard?.timeline ?? [];
-  const topTimeByGame = dashboard?.topTimeByGame ?? [];
-
-  const showBrush = timeline.length > 22;
+  const hoursByMonth = dashboard?.hoursByMonth ?? [];
+  const donutMonth = dashboard?.donutMonth ?? null;
 
   const headerToggle = () => setFiltersOpen((v) => !v);
-
   const isMsgError = !!error;
 
-  // timeline formatting
-  const xTick = (ts: any) => {
-    const n = Number(ts);
-    if (!Number.isFinite(n)) return "";
-    const d = new Date(n);
-    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-  };
-
-  const xLabelFormatter = (ts: any) => {
-    const n = Number(ts);
-    if (!Number.isFinite(n)) return "—";
-    const d = new Date(n);
-    return d.toLocaleString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
+  const donutCells = useMemo(() => {
+    const list = donutMonth?.games ?? [];
+    return list.map((_, idx) => {
+      const op = 0.28 + (idx % 8) * 0.08;
+      return Math.max(0.22, Math.min(0.9, op));
     });
-  };
+  }, [donutMonth]);
+
+  const KPI_CARD = cx(
+    GLASS_CARD,
+    SOFT_RING,
+    "p-5 transition",
+    "border-emerald-500/15 bg-emerald-500/5 hover:bg-emerald-500/8 hover:border-emerald-500/25"
+  );
+
+  const KPI_LABEL =
+    "text-[11px] text-muted-foreground inline-flex items-center gap-2";
 
   return (
     <main className="relative isolate min-h-screen overflow-hidden bg-background">
@@ -526,20 +587,23 @@ export default function StatsPage() {
               Dashboard
             </h1>
             <p className="mt-1 text-sm text-muted-foreground/90">
-              Agora o foco é: <b>“quanto você deu pros últimos jogos”</b> (por
-              período).
+              Agora o foco é: <b>tempo por mês</b> + <b>jogos do mês</b>.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
-              className={cx("h-10 rounded-xl", CLICKABLE)}
+              className={cx(
+                "h-10 rounded-xl",
+                "border-emerald-500/25 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/35",
+                CLICKABLE
+              )}
               onClick={() => refreshAll()}
               disabled={loading}
               title="Recarregar"
             >
-              <RefreshCw size={16} className="mr-2" />
+              <RefreshCw size={16} className="mr-2 text-emerald-300" />
               Recarregar
             </Button>
           </div>
@@ -559,9 +623,8 @@ export default function StatsPage() {
           </div>
         ) : null}
 
-        {/* Filters (collapsible) */}
+        {/* Filters */}
         <section className={cx(GLASS_CARD, SOFT_RING, "p-0 overflow-visible")}>
-          {/* Header clicável */}
           <div
             role="button"
             tabIndex={0}
@@ -571,14 +634,14 @@ export default function StatsPage() {
             }}
             className={cx(
               "p-6 select-none",
-              "cursor-pointer transition hover:bg-card/40"
+              "cursor-pointer transition hover:bg-emerald-500/5"
             )}
             title="Clique para recolher/expandir"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <Filter size={16} className="opacity-80" />
+                  <Filter size={16} className="opacity-80 text-emerald-300" />
                   Filtros
                   <span className="text-[11px] font-semibold text-muted-foreground">
                     • auto
@@ -621,13 +684,16 @@ export default function StatsPage() {
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
-                  className={cx("h-10 rounded-xl", CLICKABLE)}
+                  className={cx(
+                    "h-10 rounded-xl",
+                    "border-emerald-500/25 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/35",
+                    CLICKABLE
+                  )}
                   onClick={(e) => {
                     e.stopPropagation();
 
                     resetFilters();
 
-                    // ✅ mantém UI com ano/mês vigente (principalmente se depois mudar pra month/year)
                     const { year, month } = getNowYearMonth();
                     setUiYear(year);
                     setUiMonth(month);
@@ -660,7 +726,6 @@ export default function StatsPage() {
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 onAnimationComplete={() => {
-                  // quando terminar de abrir, libera overflow pra dropdown não ser cortado
                   setBodyOverflow(filtersOpen ? "visible" : "hidden");
                 }}
                 className={cx(
@@ -671,7 +736,6 @@ export default function StatsPage() {
                 )}
               >
                 <div className="p-6">
-                  {/* ✅ tudo na mesma linha no desktop; no mobile empilha */}
                   <div className="grid gap-3 grid-cols-1 lg:grid-cols-4">
                     {/* Ano */}
                     <div className="">
@@ -744,7 +808,7 @@ export default function StatsPage() {
                       </select>
                     </div>
 
-                    {/* Jogo / Busca (na mesma linha) */}
+                    {/* Jogo / Busca */}
                     <div className="">
                       <div className="mb-1 text-[11px] font-semibold text-muted-foreground">
                         Jogo / Busca (título)
@@ -787,7 +851,6 @@ export default function StatsPage() {
                           </div>
                         </div>
 
-                        {/* ✅ Dropdown em PORTAL (nunca fica atrás dos KPIs) */}
                         {showGameDropdown &&
                         gameRect &&
                         typeof document !== "undefined"
@@ -801,7 +864,7 @@ export default function StatsPage() {
                                   width: gameRect.width,
                                   zIndex: 2147483647,
                                 }}
-                                className="overflow-hidden rounded-2xl border border-border/50 bg-background/90 shadow-2xl backdrop-blur-xl"
+                                className="overflow-hidden rounded-2xl border border-emerald-500/20 bg-background/90 shadow-2xl backdrop-blur-xl"
                               >
                                 <div className="max-h-[320px] overflow-auto p-2">
                                   {gameOptions.map((g) => (
@@ -814,7 +877,7 @@ export default function StatsPage() {
                                         setGameQuery("");
                                         setFiltersOpen(false);
                                       }}
-                                      className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-left hover:border-border/50 hover:bg-card/40"
+                                      className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-left hover:border-emerald-500/20 hover:bg-emerald-500/8"
                                     >
                                       <div className="min-w-0 flex-1">
                                         <div className="truncate text-sm font-semibold text-foreground">
@@ -859,25 +922,43 @@ export default function StatsPage() {
         </section>
 
         {/* KPI cards */}
-        <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
-          <div className={cx(GLASS_CARD, SOFT_RING, "p-5")}>
-            <div className="text-[11px] text-muted-foreground">
+        <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={KPI_CARD}>
+            <div className={KPI_LABEL}>
+              <span className="h-2 w-2 rounded-full bg-emerald-400/80 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]" />
               Ciclos (qtd)
             </div>
             <div className="mt-1 text-2xl font-bold text-foreground">
               {kpis ? kpis.cycles : "—"}
             </div>
             <div className="mt-2 text-[11px] text-muted-foreground">
-              abertos: {kpis ? kpis.openCycles : "—"} • média:{" "}
+              abertos: {kpis ? kpis.openCycles : "—"} • com nota:{" "}
+              {kpis ? kpis.ratedCycles : "—"}
+            </div>
+          </div>
+
+          <div className={KPI_CARD}>
+            <div className={KPI_LABEL}>
+              <span className="h-2 w-2 rounded-full bg-emerald-400/80 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]" />
+              Reviews (média)
+            </div>
+            <div className="mt-1 text-2xl font-bold text-foreground">
               {kpis?.avgFinalRating != null
                 ? kpis.avgFinalRating.toFixed(1)
                 : "—"}
             </div>
+            <div className="mt-2 text-[11px] text-muted-foreground">
+              reviews escritas: {kpis ? kpis.reviewsWritten : "—"} • média:{" "}
+              {kpis?.avgReviewedFinalRating != null
+                ? kpis.avgReviewedFinalRating.toFixed(1)
+                : "—"}
+            </div>
           </div>
 
-          <div className={cx(GLASS_CARD, SOFT_RING, "p-5")}>
-            <div className="text-[11px] text-muted-foreground">
-              Sessões (qtd)
+          <div className={KPI_CARD}>
+            <div className={KPI_LABEL}>
+              <span className="h-2 w-2 rounded-full bg-emerald-400/80 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]" />
+              Sessões (médias)
             </div>
             <div className="mt-1 text-2xl font-bold text-foreground">
               {kpis ? kpis.finishedSessions : "—"}
@@ -895,54 +976,13 @@ export default function StatsPage() {
             </div>
           </div>
 
-          <div className={cx(GLASS_CARD, SOFT_RING, "p-5")}>
-            <div className="text-[11px] text-muted-foreground">
-              Reviews (qtd)
+          <div className={KPI_CARD}>
+            <div className={KPI_LABEL}>
+              <span className="h-2 w-2 rounded-full bg-emerald-400/80 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]" />
+              Tempo total
             </div>
-            <div className="mt-1 text-2xl font-bold text-foreground">
-              {kpis ? kpis.reviewsWritten : "—"}
-            </div>
-            <div className="mt-2 text-[11px] text-muted-foreground">
-              média (c/ review):{" "}
-              {kpis?.avgReviewedFinalRating != null
-                ? kpis.avgReviewedFinalRating.toFixed(1)
-                : "—"}
-            </div>
-          </div>
-
-          <div className={cx(GLASS_CARD, SOFT_RING, "p-5")}>
-            <div className="text-[11px] text-muted-foreground">
-              Nota externa (qtd)
-            </div>
-            <div className="mt-1 text-2xl font-bold text-foreground">
-              {kpis ? kpis.externalRatingsCount : "—"}
-            </div>
-
-            <div className="mt-3 max-h-20 overflow-auto pr-1">
-              <div className="flex flex-wrap gap-2">
-                {(kpis?.externalRatings ?? []).map((er: any, idx: number) => (
-                  <span
-                    key={`${er.label}-${idx}`}
-                    className="inline-flex items-center rounded-full border border-border/50 bg-card/40 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground"
-                    title={er.label}
-                  >
-                    {er.label} • {Number(er.score).toFixed(1)}
-                  </span>
-                ))}
-
-                {!kpis?.externalRatings?.length ? (
-                  <span className="text-[11px] text-muted-foreground/70">
-                    (sem notas externas no recorte)
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          <div className={cx(GLASS_CARD, SOFT_RING, "p-5")}>
-            <div className="text-[11px] text-muted-foreground">Tempo total</div>
             <div className="mt-1 inline-flex items-center gap-2 text-2xl font-bold text-foreground">
-              <Timer size={18} className="opacity-80" />
+              <Timer size={18} className="opacity-80 text-emerald-300" />
               {kpis ? `${kpis.totalMinutes} min` : "—"}
             </div>
             <div className="mt-2 text-[11px] text-muted-foreground">
@@ -954,15 +994,15 @@ export default function StatsPage() {
           </div>
         </section>
 
-        {/* Charts novos */}
+        {/* Charts */}
         <section className="grid gap-4 grid-cols-1 lg:grid-cols-3">
           <div className={cx(GLASS_CARD, SOFT_RING, "p-6 lg:col-span-2")}>
             <div className="mb-3 flex items-center justify-between">
               <div className="text-sm font-semibold text-foreground">
-                Últimas notas (ciclos avaliados)
+                Horas jogadas por mês (ano)
               </div>
               <div className="text-[11px] text-muted-foreground inline-flex items-center gap-2">
-                <BarChart3 size={12} className="opacity-70" />
+                <BarChart3 size={12} className="opacity-70 text-emerald-300" />
                 {loading ? "Carregando…" : "Atualizado"}
               </div>
             </div>
@@ -970,204 +1010,32 @@ export default function StatsPage() {
             <div className="h-[360px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={recentRatings}
-                  layout="vertical"
-                  margin={{ left: 18, right: 18, top: 6, bottom: 6 }}
+                  data={hoursByMonth}
+                  margin={{ left: 12, right: 16, top: 6, bottom: 6 }}
                   barCategoryGap={10}
-                >
-                  <CartesianGrid
-                    stroke="hsl(var(--border))"
-                    strokeOpacity={0.35}
-                    strokeDasharray="3 3"
-                  />
-                  <XAxis
-                    type="number"
-                    domain={[0, 10]}
-                    tick={{
-                      fontSize: 11,
-                      fill: "hsl(var(--muted-foreground))",
-                    }}
-                    axisLine={{
-                      stroke: "hsl(var(--border))",
-                      strokeOpacity: 0.35,
-                    }}
-                    tickLine={{
-                      stroke: "hsl(var(--border))",
-                      strokeOpacity: 0.35,
-                    }}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="label"
-                    width={190}
-                    tick={{
-                      fontSize: 11,
-                      fill: "hsl(var(--muted-foreground))",
-                    }}
-                    axisLine={{
-                      stroke: "hsl(var(--border))",
-                      strokeOpacity: 0.35,
-                    }}
-                    tickLine={{
-                      stroke: "hsl(var(--border))",
-                      strokeOpacity: 0.35,
-                    }}
-                  />
-                  <Tooltip content={<GlassTooltip />} />
-
-                  <Bar
-                    dataKey="rating_final"
-                    name="nota final"
-                    fill="hsl(var(--primary))"
-                    radius={[10, 10, 10, 10]}
-                    isAnimationActive={!loading}
-                  >
-                    <LabelList
-                      dataKey="rating_final"
-                      position="right"
-                      formatter={(v: any) =>
-                        typeof v === "number" ? v.toFixed(1) : ""
-                      }
-                      style={{
-                        fontSize: 11,
-                        fill: "hsl(var(--muted-foreground))",
-                      }}
-                    />
-                  </Bar>
-
-                  <Bar
-                    dataKey="avg_score_finished"
-                    name="média sessões"
-                    fill="hsl(var(--muted-foreground))"
-                    radius={[10, 10, 10, 10]}
-                    isAnimationActive={!loading}
-                  />
-
-                  <Bar
-                    dataKey="external_rating"
-                    name="nota externa"
-                    fill="hsl(var(--foreground))"
-                    fillOpacity={0.25}
-                    radius={[10, 10, 10, 10]}
-                    isAnimationActive={!loading}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="mt-3 text-[11px] text-muted-foreground">
-              Isso aqui é o que você queria ver:{" "}
-              <b>os últimos ciclos com nota</b>, com comparação opcional com{" "}
-              <b>média das sessões</b> e <b>nota externa</b>.
-            </div>
-          </div>
-
-          <div className={cx(GLASS_CARD, SOFT_RING, "p-6")}>
-            <div className="mb-3 text-sm font-semibold text-foreground">
-              Top jogos por tempo (min)
-            </div>
-
-            <div className="h-[360px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={topTimeByGame}
-                  layout="vertical"
-                  margin={{ left: 18, right: 18, top: 6, bottom: 6 }}
-                  barCategoryGap={10}
-                >
-                  <CartesianGrid
-                    stroke="hsl(var(--border))"
-                    strokeOpacity={0.35}
-                    strokeDasharray="3 3"
-                  />
-                  <XAxis
-                    type="number"
-                    tick={{
-                      fontSize: 11,
-                      fill: "hsl(var(--muted-foreground))",
-                    }}
-                    axisLine={{
-                      stroke: "hsl(var(--border))",
-                      strokeOpacity: 0.35,
-                    }}
-                    tickLine={{
-                      stroke: "hsl(var(--border))",
-                      strokeOpacity: 0.35,
-                    }}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="game_title"
-                    width={130}
-                    tick={{
-                      fontSize: 11,
-                      fill: "hsl(var(--muted-foreground))",
-                    }}
-                    axisLine={{
-                      stroke: "hsl(var(--border))",
-                      strokeOpacity: 0.35,
-                    }}
-                    tickLine={{
-                      stroke: "hsl(var(--border))",
-                      strokeOpacity: 0.35,
-                    }}
-                  />
-                  <Tooltip content={<GlassTooltip />} />
-                  <Bar
-                    dataKey="minutes"
-                    name="minutos"
-                    fill="hsl(var(--primary))"
-                    radius={[10, 10, 10, 10]}
-                    isAnimationActive={!loading}
-                  >
-                    <LabelList
-                      dataKey="minutes"
-                      position="right"
-                      formatter={(v: any) =>
-                        typeof v === "number" ? `${v.toFixed(0)}m` : ""
-                      }
-                      style={{
-                        fontSize: 11,
-                        fill: "hsl(var(--muted-foreground))",
-                      }}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="mt-3 text-[11px] text-muted-foreground">
-              (ajuda a entender “onde foi meu tempo” no recorte)
-            </div>
-          </div>
-
-          <div className={cx(GLASS_CARD, SOFT_RING, "p-6 lg:col-span-3")}>
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-semibold text-foreground">
-                Timeline (nota final vs média das sessões)
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                eixo 0–10 • ordenado por data
-              </div>
-            </div>
-
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={timeline}
-                  margin={{ left: 8, right: 16, top: 6, bottom: 6 }}
                 >
                   <defs>
-                    <linearGradient id="gradFinal" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient
+                      id="barEmeraldGrad"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
                       <stop
-                        offset="5%"
-                        stopColor="hsl(var(--primary))"
-                        stopOpacity={0.25}
+                        offset="0%"
+                        stopColor={EMERALD_400}
+                        stopOpacity={0.95}
                       />
                       <stop
-                        offset="95%"
-                        stopColor="hsl(var(--primary))"
-                        stopOpacity={0.05}
+                        offset="55%"
+                        stopColor={EMERALD_500}
+                        stopOpacity={0.75}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor={EMERALD_600}
+                        stopOpacity={0.55}
                       />
                     </linearGradient>
                   </defs>
@@ -1177,12 +1045,8 @@ export default function StatsPage() {
                     strokeOpacity={0.35}
                     strokeDasharray="3 3"
                   />
-
                   <XAxis
-                    dataKey="ts"
-                    type="number"
-                    domain={["dataMin", "dataMax"]}
-                    tickFormatter={xTick}
+                    dataKey="label"
                     tick={{
                       fontSize: 11,
                       fill: "hsl(var(--muted-foreground))",
@@ -1196,9 +1060,7 @@ export default function StatsPage() {
                       strokeOpacity: 0.35,
                     }}
                   />
-
                   <YAxis
-                    domain={[0, 10]}
                     tick={{
                       fontSize: 11,
                       fill: "hsl(var(--muted-foreground))",
@@ -1211,91 +1073,129 @@ export default function StatsPage() {
                       stroke: "hsl(var(--border))",
                       strokeOpacity: 0.35,
                     }}
+                    tickFormatter={(v) => `${v}h`}
                   />
+                  <Tooltip content={<HoursByMonthTooltip />} />
 
-                  <Tooltip
-                    content={<GlassTooltip />}
-                    labelFormatter={xLabelFormatter}
-                  />
-
-                  {kpis?.avgFinalRating != null ? (
-                    <ReferenceLine
-                      y={kpis.avgFinalRating}
-                      stroke="hsl(var(--muted-foreground))"
-                      strokeOpacity={0.45}
-                      strokeDasharray="6 6"
+                  <Bar
+                    dataKey="hours"
+                    name="horas"
+                    fill="url(#barEmeraldGrad)"
+                    radius={[10, 10, 10, 10]}
+                    isAnimationActive={!loading}
+                  >
+                    <LabelList
+                      dataKey="hours"
+                      position="top"
+                      formatter={(v: any) =>
+                        typeof v === "number" && v > 0 ? `${v.toFixed(1)}h` : ""
+                      }
+                      style={{
+                        fontSize: 11,
+                        fill: "hsl(var(--muted-foreground))",
+                      }}
                     />
-                  ) : null}
-
-                  <Area
-                    type="monotone"
-                    dataKey="rating_final"
-                    name="nota final"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    fill="url(#gradFinal)"
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                    isAnimationActive={!loading}
-                  />
-
-                  <Line
-                    type="monotone"
-                    dataKey="avg_score_finished"
-                    name="média sessões"
-                    stroke="hsl(var(--foreground))"
-                    strokeOpacity={0.35}
-                    strokeWidth={2}
-                    dot={false}
-                    isAnimationActive={!loading}
-                  />
-
-                  <Line
-                    type="monotone"
-                    dataKey="external_rating"
-                    name="nota externa"
-                    stroke="hsl(var(--foreground))"
-                    strokeOpacity={0.18}
-                    strokeWidth={2}
-                    dot={false}
-                    isAnimationActive={!loading}
-                  />
-
-                  {showBrush ? (
-                    <Brush
-                      dataKey="ts"
-                      height={26}
-                      stroke="hsl(var(--primary))"
-                      travellerWidth={10}
-                    />
-                  ) : null}
-                </AreaChart>
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </div>
 
             <div className="mt-3 text-[11px] text-muted-foreground">
-              Se sua “média das sessões” fica alta e a “nota final” cai, é sinal
-              de <b>review mais crítica</b> (ou vice-versa).
+              Passe o mouse em um mês para ver{" "}
+              <b>quais jogos compõem as horas</b> (com %).
+            </div>
+          </div>
+
+          <div className={cx(GLASS_CARD, SOFT_RING, "p-6")}>
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-sm font-semibold text-foreground">
+                Jogos do mês (donut)
+              </div>
+              <div className="text-[11px] text-muted-foreground inline-flex items-center gap-2">
+                <PieIcon size={12} className="opacity-70 text-emerald-300" />
+                {donutMonth?.label ?? "—"}
+              </div>
+            </div>
+
+            <div className="h-[320px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <defs>
+                    {(donutMonth?.games ?? []).map((_: any, idx: number) => (
+                      <linearGradient
+                        key={`grad-${idx}`}
+                        id={donutGradId(idx)}
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="1"
+                        gradientTransform={`rotate(${idx * 27})`}
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor={EMERALD_400}
+                          stopOpacity={0.98}
+                        />
+                        <stop
+                          offset="45%"
+                          stopColor={EMERALD_500}
+                          stopOpacity={0.82}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor={EMERALD_600}
+                          stopOpacity={0.68}
+                        />
+                      </linearGradient>
+                    ))}
+                  </defs>
+
+                  <Tooltip content={<DonutTooltip />} />
+                  <Pie
+                    data={donutMonth?.games ?? []}
+                    dataKey="minutes"
+                    nameKey="title"
+                    innerRadius="55%"
+                    outerRadius="85%"
+                    paddingAngle={2}
+                    stroke="hsl(var(--border))"
+                    strokeOpacity={0.22}
+                  >
+                    {(donutMonth?.games ?? []).map((_: any, idx: number) => (
+                      <Cell
+                        key={`cell-${idx}`}
+                        fill={`url(#${donutGradId(idx)})`}
+                        fillOpacity={donutCells[idx] ?? 0.45}
+                      />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="mt-3 text-[11px] text-muted-foreground">
+              Passe o mouse em um jogo para ver: <b>média review</b>,{" "}
+              <b>média sessões</b> e <b>nota externa</b>.
             </div>
           </div>
         </section>
 
-        {/* Feed */}
+        {/* ✅ Feed (AJUSTE: lista 1 coluna, sem grid de 2) */}
         <section className={cx(GLASS_CARD, SOFT_RING, "p-6")}>
           <div className="mb-4 flex items-center justify-between">
             <div className="text-sm font-semibold text-foreground">
-              Feed (ciclos com nota){" "}
+              Ciclos{" "}
               <span className="text-muted-foreground">
                 • {feed.length} itens
               </span>
             </div>
             <div className="text-[11px] text-muted-foreground">
-              clique no card → abre histórico
+              clique no card → abre histórico do jogo
             </div>
           </div>
 
           {feed.length ? (
-            <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
+            <div className="space-y-3">
               {feed.map((r) => (
                 <button
                   key={r.cycle_id}
@@ -1304,12 +1204,13 @@ export default function StatsPage() {
                     setDrawerOpen(true);
                   }}
                   className={cx(
-                    "text-left rounded-2xl border border-border/50 bg-card/40 shadow-xl backdrop-blur-xl transition hover:bg-card/50",
+                    "w-full text-left rounded-2xl border border-emerald-500/15 bg-emerald-500/5 shadow-xl backdrop-blur-xl transition",
+                    "hover:bg-emerald-500/8 hover:border-emerald-500/25",
                     SOFT_RING
                   )}
                 >
                   <div className="flex gap-3 p-4">
-                    <div className="h-16 w-24 overflow-hidden rounded-xl border border-border/50 bg-background/30">
+                    <div className="h-16 w-24 overflow-hidden rounded-xl border border-emerald-500/15 bg-background/30">
                       {r.cover_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -1341,16 +1242,28 @@ export default function StatsPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <div className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-card/40 px-2.5 py-1 text-[11px] font-semibold text-foreground">
-                            <Star size={12} className="opacity-80" />
-                            {Number(r.rating_final).toFixed(1)}
-                          </div>
+                          {r.rating_final != null ? (
+                            <div className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-foreground">
+                              <Star
+                                size={12}
+                                className="opacity-80 text-emerald-300"
+                              />
+                              {Number(r.rating_final).toFixed(1)}
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center rounded-full border border-emerald-500/15 bg-emerald-500/8 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+                              sem nota
+                            </div>
+                          )}
                         </div>
                       </div>
 
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
-                          <Timer size={12} className="opacity-80" />
+                          <Timer
+                            size={12}
+                            className="opacity-80 text-emerald-300"
+                          />
                           {r.total_minutes_finished ?? 0} min
                         </span>
 
@@ -1390,14 +1303,18 @@ export default function StatsPage() {
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">
-              Nenhum item no feed com esses filtros.
+              Nenhum ciclo no recorte atual.
             </div>
           )}
 
           <div className="mt-5 flex flex-col items-center gap-2">
             <Button
               variant="outline"
-              className={cx("h-11 rounded-xl", CLICKABLE)}
+              className={cx(
+                "h-11 rounded-xl",
+                "border-emerald-500/25 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/35",
+                CLICKABLE
+              )}
               disabled={loading || !feedHasMore}
               onClick={() => feedLoadMore()}
               title="Carregar mais (10 em 10)"

@@ -39,7 +39,7 @@ export type FeedRow = {
   started_at: string;
   ended_at: string | null;
 
-  rating_final: number;
+  rating_final: number | null;
   review_text: string | null;
 
   sessions_count_finished: number | null;
@@ -66,6 +66,8 @@ export type CycleRow = {
   total_minutes_finished: number | null;
   avg_session_minutes_finished: number | null;
   avg_score_finished: number | null;
+
+  last_session_started_at: string | null; // ✅ p/ “últimos jogos do mês”
 };
 
 export type ExternalRatingRow = {
@@ -81,7 +83,7 @@ export type DashboardKpis = {
   openCycles: number;
 
   ratedCycles: number;
-  avgFinalRating: number | null;
+  avgFinalRating: number | null; // aqui é “média das reviews” (rating_final)
   lastFinalRating: number | null;
 
   finishedSessions: number;
@@ -91,21 +93,22 @@ export type DashboardKpis = {
   reviewsWritten: number;
   avgReviewedFinalRating: number | null;
 
-  externalRatingsCount: number; // qtd de registros externos no recorte
-  externalRatings: Array<{ label: string; score: number; url: string | null }>; // lista (sem média)
+  // (vamos parar de usar isso na UI depois; por enquanto não quebra)
+  externalRatingsCount: number;
+  externalRatings: Array<{ label: string; score: number; url: string | null }>;
 
   totalMinutes: number;
 };
 
 export type RecentRatingPoint = {
-  label: string; // y-axis
+  label: string;
   rating_final: number;
   avg_score_finished: number | null;
-  external_rating: number | null; // valor “representativo” (latest por jogo)
+  external_rating: number | null;
 };
 
 export type TimelinePoint = {
-  ts: number; // x numérico
+  ts: number;
   rating_final: number;
   avg_score_finished: number | null;
   external_rating: number | null;
@@ -116,11 +119,57 @@ export type TopTimePoint = {
   minutes: number;
 };
 
+/* =========================
+   ✅ Novos datasets (pra sua nova página)
+========================= */
+
+export type HoursByMonthGame = {
+  game_id: string;
+  title: string;
+  minutes: number;
+  hours: number;
+  percent: number; // 0..100
+};
+
+export type HoursByMonthPoint = {
+  month: number; // 1..12
+  label: string; // "Jan"
+  minutes: number;
+  hours: number;
+  games: HoursByMonthGame[]; // breakdown p/ tooltip
+};
+
+export type DonutGamePoint = {
+  game_id: string;
+  title: string;
+  minutes: number;
+  hours: number;
+  percent: number; // 0..100
+
+  avg_review: number | null; // média do rating_final (reviews)
+  avg_session_score: number | null; // ponderado por sessions_count_finished
+  external_rating: number | null; // latest external por jogo (0..10)
+};
+
+export type DonutMonthData = {
+  year: number;
+  month: number;
+  label: string; // "Jan/2026"
+  totalMinutes: number;
+  games: DonutGamePoint[];
+};
+
 export type DashboardData = {
   kpis: DashboardKpis;
+
+  // antigos (mantidos por compat)
   recentRatings: RecentRatingPoint[];
   timeline: TimelinePoint[];
   topTimeByGame: TopTimePoint[];
+
+  // ✅ novos
+  hoursByMonth: HoursByMonthPoint[]; // barras por mês no ano
+  donutMonth: DonutMonthData | null; // donut do mês
 };
 
 export type UseStatsDashboardResult = {
@@ -219,8 +268,24 @@ function buildRange(filters: StatsFilters): {
   return { startIso: start.toISOString(), endIso: end.toISOString() };
 }
 
+function yearRangeIso(year: number) {
+  const start = new Date(Date.UTC(year, 0, 1, 0, 0, 0)).toISOString();
+  const end = new Date(Date.UTC(year + 1, 0, 1, 0, 0, 0)).toISOString();
+  return { start, end };
+}
+
+function getMonthFromIso(iso: string) {
+  // iso -> Date in UTC-ish (ok pra agrupar)
+  const d = new Date(iso);
+  const m = d.getUTCMonth() + 1;
+  return clamp(m, 1, 12);
+}
+
 function pickLatestExternalByGame(externals: ExternalRatingRow[]) {
-  const map = new Map<string, { score: number; t: number | null }>();
+  const map = new Map<
+    string,
+    { score: number; t: number | null; url: string | null }
+  >();
 
   for (const r of externals) {
     const score = r.score_0_10;
@@ -230,27 +295,218 @@ function pickLatestExternalByGame(externals: ExternalRatingRow[]) {
     const cur = map.get(r.game_id);
 
     if (!cur) {
-      map.set(r.game_id, { score, t });
+      map.set(r.game_id, { score: Number(score), t, url: r.url ?? null });
       continue;
     }
 
-    // se tem data, usa a mais recente; se não tem, mantém o primeiro
     if (t != null && (cur.t == null || t > cur.t)) {
-      map.set(r.game_id, { score, t });
+      map.set(r.game_id, { score: Number(score), t, url: r.url ?? null });
     }
   }
 
   return map;
 }
 
+function deriveHoursByMonth(
+  rowsYear: CycleRow[],
+  year: number
+): HoursByMonthPoint[] {
+  const byMonth: Array<{
+    minutes: number;
+    byGame: Map<string, { title: string; minutes: number }>;
+  }> = Array.from({ length: 12 }, () => ({
+    minutes: 0,
+    byGame: new Map(),
+  }));
+
+  for (const r of rowsYear) {
+    // garante ano
+    const d = new Date(r.started_at);
+    const y = d.getUTCFullYear();
+    if (y !== year) continue;
+
+    const m = getMonthFromIso(r.started_at); // 1..12
+    const idx = m - 1;
+
+    const mins = safeNum(r.total_minutes_finished);
+    if (mins <= 0) continue;
+
+    byMonth[idx].minutes += mins;
+
+    const cur = byMonth[idx].byGame.get(r.game_id) ?? {
+      title: r.game_title,
+      minutes: 0,
+    };
+    cur.minutes += mins;
+    byMonth[idx].byGame.set(r.game_id, cur);
+  }
+
+  return byMonth.map((slot, idx) => {
+    const total = slot.minutes;
+    const games: HoursByMonthGame[] = Array.from(slot.byGame.entries())
+      .map(([game_id, v]) => ({
+        game_id,
+        title: v.title,
+        minutes: Math.round(v.minutes),
+        hours: round1(v.minutes / 60),
+        percent: total > 0 ? round1((v.minutes / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.minutes - a.minutes)
+      .slice(0, 10); // tooltip top 10
+
+    return {
+      month: idx + 1,
+      label: MESES_PT[idx],
+      minutes: Math.round(total),
+      hours: round1(total / 60),
+      games,
+    };
+  });
+}
+
+function deriveDonutMonth(
+  rowsYear: CycleRow[],
+  externals: ExternalRatingRow[],
+  year: number,
+  month: number
+): DonutMonthData | null {
+  const targetMonth = clamp(month, 1, 12);
+  const latestExternal = pickLatestExternalByGame(externals);
+
+  // filtra ciclos do mês
+  const monthRows = rowsYear.filter((r) => {
+    const d = new Date(r.started_at);
+    return (
+      d.getUTCFullYear() === year &&
+      getMonthFromIso(r.started_at) === targetMonth
+    );
+  });
+
+  if (!monthRows.length) {
+    return {
+      year,
+      month: targetMonth,
+      label: `${MESES_PT[targetMonth - 1]}/${year}`,
+      totalMinutes: 0,
+      games: [],
+    };
+  }
+
+  // agrega por jogo
+  type Agg = {
+    title: string;
+    minutes: number;
+
+    // reviews
+    reviewSum: number;
+    reviewCount: number;
+
+    // session score (ponderado por sessões)
+    scoreWeightedSum: number;
+    scoreWeight: number;
+  };
+
+  const map = new Map<string, Agg>();
+
+  for (const r of monthRows) {
+    const mins = safeNum(r.total_minutes_finished);
+
+    const cur = map.get(r.game_id) ?? {
+      title: r.game_title,
+      minutes: 0,
+      reviewSum: 0,
+      reviewCount: 0,
+      scoreWeightedSum: 0,
+      scoreWeight: 0,
+    };
+
+    cur.minutes += mins;
+
+    if (r.rating_final != null && Number.isFinite(Number(r.rating_final))) {
+      cur.reviewSum += Number(r.rating_final);
+      cur.reviewCount += 1;
+    }
+
+    const sess = safeNum(r.sessions_count_finished);
+    if (
+      sess > 0 &&
+      r.avg_score_finished != null &&
+      Number.isFinite(Number(r.avg_score_finished))
+    ) {
+      cur.scoreWeightedSum += Number(r.avg_score_finished) * sess;
+      cur.scoreWeight += sess;
+    }
+
+    map.set(r.game_id, cur);
+  }
+
+  const totalMinutes = Array.from(map.values()).reduce(
+    (acc, v) => acc + v.minutes,
+    0
+  );
+
+  const gamesAll: DonutGamePoint[] = Array.from(map.entries())
+    .map(([game_id, v]) => {
+      const ext = latestExternal.get(game_id)?.score ?? null;
+
+      return {
+        game_id,
+        title: v.title,
+        minutes: Math.round(v.minutes),
+        hours: round1(v.minutes / 60),
+        percent:
+          totalMinutes > 0 ? round1((v.minutes / totalMinutes) * 100) : 0,
+
+        avg_review: v.reviewCount ? round1(v.reviewSum / v.reviewCount) : null,
+        avg_session_score: v.scoreWeight
+          ? round1(v.scoreWeightedSum / v.scoreWeight)
+          : null,
+        external_rating: ext != null ? round1(ext) : null,
+      };
+    })
+    .sort((a, b) => b.minutes - a.minutes);
+
+  // top N + (opcional) agrupar resto em "Outros"
+  const TOP = 8;
+  let games = gamesAll;
+  if (gamesAll.length > TOP) {
+    const top = gamesAll.slice(0, TOP);
+    const rest = gamesAll.slice(TOP);
+
+    const restMinutes = rest.reduce((acc, g) => acc + g.minutes, 0);
+    const restPercent = rest.reduce((acc, g) => acc + g.percent, 0);
+
+    top.push({
+      game_id: "__others__",
+      title: "Outros",
+      minutes: Math.round(restMinutes),
+      hours: round1(restMinutes / 60),
+      percent: round1(restPercent),
+      avg_review: null,
+      avg_session_score: null,
+      external_rating: null,
+    });
+
+    games = top;
+  }
+
+  return {
+    year,
+    month: targetMonth,
+    label: `${MESES_PT[targetMonth - 1]}/${year}`,
+    totalMinutes: Math.round(totalMinutes),
+    games,
+  };
+}
+
 function deriveDashboard(
   rows: CycleRow[],
   externals: ExternalRatingRow[]
-): DashboardData {
+): Omit<DashboardData, "hoursByMonth" | "donutMonth"> {
   const cycles = rows.length;
   const openCycles = rows.filter((r) => !r.ended_at).length;
 
-  // ratings
+  // ratings (reviews)
   const rated = rows
     .filter(
       (r) => r.rating_final != null && Number.isFinite(Number(r.rating_final))
@@ -308,7 +564,7 @@ function deriveDashboard(
     ? round1(sumMinutesWeighted / weightSessionsMinutes)
     : null;
 
-  // reviews
+  // reviews written
   const reviewed = rows.filter((r) => (r.review_text ?? "").trim().length > 0);
   const reviewsWritten = reviewed.length;
 
@@ -322,13 +578,12 @@ function deriveDashboard(
       )
     : null;
 
-  // externas: lista (sem média) + “valor representativo” por jogo (latest) pra charts
+  // externas (mantido por compat — vamos tirar da UI depois)
   const latestByGame = pickLatestExternalByGame(externals);
   const externalRatingsCount = externals.filter(
     (r) => r.score_0_10 != null && Number.isFinite(Number(r.score_0_10))
   ).length;
 
-  // para mostrar no KPI: “todas” (lista)
   const gameTitleById = new Map<string, string>();
   for (const r of rows) gameTitleById.set(r.game_id, r.game_title);
 
@@ -345,10 +600,9 @@ function deriveDashboard(
         url: r.url ?? null,
       };
     })
-    // ordena por score desc só pra ficar “visualmente útil”
     .sort((a, b) => b.score - a.score);
 
-  // séries
+  // séries antigas (baseadas em ciclos com nota)
   const recentRatings: RecentRatingPoint[] = rated.slice(0, 12).map((r) => {
     const d = new Date(r.started_at);
     const ddmm = d.toLocaleDateString("pt-BR", {
@@ -389,7 +643,7 @@ function deriveDashboard(
       };
     });
 
-  // top tempo por jogo
+  // top tempo por jogo (no recorte do período)
   const minutesByGame = new Map<string, { title: string; minutes: number }>();
   for (const r of rows) {
     const cur = minutesByGame.get(r.game_id) ?? {
@@ -440,7 +694,7 @@ export function useStatsDashboard(): UseStatsDashboardResult {
   const now = new Date();
 
   const DEFAULT_FILTERS: StatsFilters = {
-    period: "last30", // ✅ padrão
+    period: "last30",
     q: "",
     gameId: null,
     statusId: null,
@@ -452,6 +706,7 @@ export function useStatsDashboard(): UseStatsDashboardResult {
     () => [
       { value: "last30" as const, label: "Últimos 30 dias" },
       { value: "last90" as const, label: "Últimos 90 dias" },
+      { value: "month" as const, label: "Mês" }, // ✅ estava faltando
       { value: "year" as const, label: "Ano" },
       { value: "all" as const, label: "Tudo" },
     ],
@@ -553,46 +808,113 @@ export function useStatsDashboard(): UseStatsDashboardResult {
     [filters]
   );
 
+  const buildYearCyclesQuery = useCallback(
+    (cols: string, year: number) => {
+      const { start, end } = yearRangeIso(year);
+
+      let q = supabase
+        .schema("kesslerlog")
+        .from("vw_cycles_enriched")
+        .select(cols)
+        .order("started_at", { ascending: false });
+
+      if (filters.gameId) q = q.eq("game_id", filters.gameId);
+      if (filters.statusId) q = q.eq("status_id", filters.statusId);
+
+      // ano inteiro
+      q = q.gte("started_at", start).lt("started_at", end);
+
+      const qq = filters.q.trim();
+      if (qq) q = q.ilike("game_title", `%${qq}%`);
+
+      return q;
+    },
+    [filters.gameId, filters.statusId, filters.q]
+  );
+
   const loadDashboardData = useCallback(async () => {
-    const cols =
+    // 🔹 cols do período (KPIs e afins)
+    const colsPeriod =
       "cycle_id,game_id,game_title,status_id,status_name,started_at,ended_at,rating_final,review_text," +
-      "sessions_count_finished,total_minutes_finished,avg_session_minutes_finished,avg_score_finished";
+      "sessions_count_finished,total_minutes_finished,avg_session_minutes_finished,avg_score_finished,last_session_started_at";
 
-    const { data, error } = await buildCyclesQuery(cols).limit(2000);
-    if (error) throw error;
+    // 🔹 ano selecionado (pro gráfico de horas/mês + donut do mês)
+    const nowYear = new Date().getFullYear();
+    const selectedYear = filters.year ?? nowYear;
 
-    const rows = (data ?? []) as any as CycleRow[];
+    const [periodRes, yearRes] = await Promise.all([
+      buildCyclesQuery(colsPeriod).limit(5000),
+      buildYearCyclesQuery(colsPeriod, selectedYear).limit(10000),
+    ]);
 
-    // externas (todas) pros jogos do recorte
-    const gameIds = Array.from(new Set(rows.map((r) => r.game_id))).filter(
-      Boolean
-    );
+    if (periodRes.error) throw periodRes.error;
+    if (yearRes.error) throw yearRes.error;
+
+    const rowsPeriod = (periodRes.data ?? []) as any as CycleRow[];
+    const rowsYear = (yearRes.data ?? []) as any as CycleRow[];
+
+    // externals para jogos relevantes (ano inteiro — serve pro donut do mês)
+    const yearGameIds = Array.from(
+      new Set(rowsYear.map((r) => r.game_id))
+    ).filter(Boolean) as string[];
 
     let externals: ExternalRatingRow[] = [];
-    if (gameIds.length) {
+    if (yearGameIds.length) {
       const { data: exData, error: exErr } = await supabase
         .schema("kesslerlog")
         .from("vw_external_ratings_norm")
         .select("game_id,source,score_0_10,url,retrieved_at")
-        .in("game_id", gameIds)
+        .in("game_id", yearGameIds)
         .limit(5000);
 
       if (exErr) throw exErr;
       externals = (exData ?? []) as any;
     }
 
-    setDashboard(deriveDashboard(rows, externals));
-  }, [buildCyclesQuery]);
+    // ✅ dashboard antigo (compat)
+    const base = deriveDashboard(rowsPeriod, externals);
+
+    // ✅ barras horas por mês (ano)
+    const hoursByMonth = deriveHoursByMonth(rowsYear, selectedYear);
+
+    // ✅ donut do mês
+    const now = new Date();
+    const donutYear = selectedYear;
+    const donutMonth =
+      filters.period === "month"
+        ? clamp(filters.month ?? now.getMonth() + 1, 1, 12)
+        : clamp(now.getMonth() + 1, 1, 12);
+
+    const donutMonthData = deriveDonutMonth(
+      rowsYear,
+      externals,
+      donutYear,
+      donutMonth
+    );
+
+    setDashboard({
+      ...base,
+      hoursByMonth,
+      donutMonth: donutMonthData,
+    });
+  }, [
+    buildCyclesQuery,
+    buildYearCyclesQuery,
+    filters.year,
+    filters.period,
+    filters.month,
+  ]);
 
   const loadFeedPage = useCallback(
     async (offset: number, append: boolean) => {
       const { startIso, endIso } = buildRange(filters);
 
+      // ✅ feed baseado em ciclos (com ou sem nota)
       let q = supabase
         .schema("kesslerlog")
-        .from("vw_ratings_feed")
+        .from("vw_cycles_enriched")
         .select(
-          "cycle_id,game_id,game_title,platform,cover_url,status_id,status_name,started_at,ended_at,rating_final,review_text," +
+          "cycle_id,game_id,game_title,status_id,status_name,started_at,ended_at,rating_final,review_text," +
             "sessions_count_finished,total_minutes_finished,avg_score_finished,last_session_started_at"
         )
         .order("started_at", { ascending: false })
@@ -611,7 +933,45 @@ export function useStatsDashboard(): UseStatsDashboardResult {
       const { data, error } = await q;
       if (error) throw error;
 
-      const rows = (data ?? []) as any as FeedRow[];
+      const baseRows = (data ?? []) as any[] as Array<
+        Omit<FeedRow, "platform" | "cover_url">
+      >;
+
+      // completa platform/cover_url via games
+      const gameIds = Array.from(
+        new Set(baseRows.map((r) => r.game_id))
+      ).filter(Boolean) as string[];
+
+      const gameMap = new Map<
+        string,
+        { platform: string | null; cover_url: string | null }
+      >();
+      if (gameIds.length) {
+        const { data: gData, error: gErr } = await supabase
+          .schema("kesslerlog")
+          .from("games")
+          .select("id,platform,cover_url")
+          .in("id", gameIds);
+
+        if (gErr) throw gErr;
+
+        for (const g of (gData ?? []) as any[]) {
+          gameMap.set(g.id, {
+            platform: (g.platform ?? null) as any,
+            cover_url: (g.cover_url ?? null) as any,
+          });
+        }
+      }
+
+      const rows: FeedRow[] = baseRows.map((r) => {
+        const extra = gameMap.get((r as any).game_id);
+        return {
+          ...(r as any),
+          platform: extra?.platform ?? null,
+          cover_url: extra?.cover_url ?? null,
+        };
+      });
+
       setFeedHasMore(rows.length === PAGE);
 
       if (append) setFeed((prev) => [...prev, ...rows]);
